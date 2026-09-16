@@ -1,0 +1,1 @@
+"""Video overlay rendering helpers."""
