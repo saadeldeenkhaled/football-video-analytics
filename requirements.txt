@@ -2,3 +2,5 @@ gradio>=4.0
 numpy>=1.24
 opencv-python>=4.8
 ultralytics>=8.3
+tqdm>=4.66
+scikit-learn>=1.3

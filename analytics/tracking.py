@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass, field
 from math import hypot
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 Point = Tuple[float, float]
+BoundingBox = Tuple[float, float, float, float]
+Detection = Union[Tuple[Point, str], Tuple[Point, str, BoundingBox]]
 
 
 @dataclass
@@ -12,6 +14,7 @@ class Track:
     track_id: int
     centroid: Point
     team: str = "unknown"
+    bbox: Optional[BoundingBox] = None
     distance_m: float = 0.0
     speed_mps: float = 0.0
     missed_frames: int = 0
@@ -24,11 +27,13 @@ class CentroidTracker:
     _next_id: int = 1
     tracks: Dict[int, Track] = field(default_factory=dict)
 
-    def update(self, detections: Iterable[Tuple[Point, str]], fps: float, pixels_per_meter: float) -> List[Track]:
+    def update(self, detections: Iterable[Detection], fps: float, pixels_per_meter: float) -> List[Track]:
         candidates = list(detections)
         unmatched = set(self.tracks)
         updated: Dict[int, Track] = {}
-        for centroid, team in candidates:
+        for detection in candidates:
+            centroid, team = detection[:2]
+            bbox = detection[2] if len(detection) > 2 else None
             best_id = None
             best_distance = self.max_distance
             for track_id in unmatched:
@@ -38,13 +43,14 @@ class CentroidTracker:
             if best_id is None:
                 best_id = self._next_id
                 self._next_id += 1
-                track = Track(best_id, centroid, team=team)
+                track = Track(best_id, centroid, team=team, bbox=bbox)
             else:
                 track = self.tracks[best_id]
                 track.distance_m += best_distance / pixels_per_meter
                 track.speed_mps = (best_distance / pixels_per_meter) * max(fps, 1.0)
                 track.centroid = centroid
                 track.team = team if team != "unknown" else track.team
+                track.bbox = bbox
                 track.missed_frames = 0
                 unmatched.remove(best_id)
             updated[best_id] = track
